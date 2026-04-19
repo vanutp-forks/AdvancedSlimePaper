@@ -6,6 +6,13 @@ Advanced Slime Paper is a fork of Paper implementing the Slime Region Format dev
 fork to maximize our ability to provide fixes and performance improvements.
 Its goal is to provide server administrators with an easy-to-use tool to load worlds faster and save space.
 
+## Building
+
+```shell
+./gradlew applyAllPatches
+./gradlew :aspaper-server:createMojmapPaperclipJar
+```
+
 ## Releases
 
 ASP builds can be found [here](https://infernalsuite.com/download/asp). Older

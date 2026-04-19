@@ -1,9 +1,6 @@
 package com.infernalsuite.asp.api.world.properties;
 
-import com.infernalsuite.asp.api.world.properties.type.SlimePropertyBoolean;
-import com.infernalsuite.asp.api.world.properties.type.SlimePropertyFloat;
-import com.infernalsuite.asp.api.world.properties.type.SlimePropertyInt;
-import com.infernalsuite.asp.api.world.properties.type.SlimePropertyString;
+import com.infernalsuite.asp.api.world.properties.type.*;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
@@ -136,4 +133,14 @@ public class SlimeProperties {
      * Fluid ticks are used for scheduling liquid flow updates. If this data is not saved, fluids will freeze when chunks or worlds get re-loaded.
      */
     public static final SlimePropertyBoolean SAVE_FLUID_TICKS = SlimePropertyBoolean.create("saveFluidTicks", false);
+
+    /**
+     * Whether to enable normal world generation
+     */
+    public static final SlimePropertyBoolean GENERATE_WORLD = SlimePropertyBoolean.create("generateWorld", false);
+
+    /**
+     * Seed to use when normal world generation is enabled
+     */
+    public static final SlimePropertyLong SEED = SlimePropertyLong.create("seed", 0);
 }

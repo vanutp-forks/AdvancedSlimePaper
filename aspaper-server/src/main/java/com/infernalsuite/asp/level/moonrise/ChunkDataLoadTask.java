@@ -6,6 +6,7 @@ import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskSchedule
 import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.ChunkLoadTask;
 import ca.spottedleaf.moonrise.patches.chunk_system.scheduling.task.GenericDataLoadTask;
 import com.infernalsuite.asp.api.world.SlimeChunk;
+import com.infernalsuite.asp.api.world.properties.SlimeProperties;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -13,7 +14,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ImposterProtoChunk;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.UpgradeData;
+import net.minecraft.world.level.levelgen.blending.BlendingData;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.ticks.LevelChunkTicks;
 import org.slf4j.Logger;
@@ -34,6 +37,8 @@ public final class ChunkDataLoadTask implements CommonLoadTask {
 
     private final ChunkLoadTask chunkLoadTask;
 
+    private final boolean doGenerateWorld;
+
     public ChunkDataLoadTask(ChunkLoadTask chunkLoadTask, final ChunkTaskScheduler scheduler, final ServerLevel world, final int chunkX,
                              final int chunkZ, final Priority priority, final Consumer<GenericDataLoadTask.TaskResult<ChunkAccess, Throwable>> onRun) {
         this.chunkLoadTask = chunkLoadTask;
@@ -42,6 +47,7 @@ public final class ChunkDataLoadTask implements CommonLoadTask {
         this.chunkX = chunkX;
         this.chunkZ = chunkZ;
         this.onRun = onRun;
+        this.doGenerateWorld = world.slimeInstance.getPropertyMap().getValue(SlimeProperties.GENERATE_WORLD);
 
         this.task = this.scheduler.createChunkTask(this.chunkX, this.chunkZ, () -> {
             try {
@@ -62,13 +68,23 @@ public final class ChunkDataLoadTask implements CommonLoadTask {
                 0L, null, chunk -> {}, null), true);
     }
 
+    private ChunkAccess getProtoChunk() {
+        return new ProtoChunk(
+            new ChunkPos(this.chunkX, this.chunkZ), UpgradeData.EMPTY, this.world,
+            this.world.palettedContainerFactory(), (BlendingData)null
+        );
+    }
+
     private ChunkAccess runOnMain(final SlimeChunk data) {
         try {
+            if (data == null && doGenerateWorld) {
+                return this.getProtoChunk();
+            }
             LevelChunk chunk = this.world.slimeInstance.createChunk(chunkX, chunkZ, data);
             return new ImposterProtoChunk(chunk, false);
         } catch (final Exception e) {
             LOGGER.error("Failed to parse main tasks for task {}, chunk data will be lost", this, e);
-            return this.getEmptyChunk();
+            return this.doGenerateWorld ? this.getProtoChunk() : this.getEmptyChunk();
         }
     }
 

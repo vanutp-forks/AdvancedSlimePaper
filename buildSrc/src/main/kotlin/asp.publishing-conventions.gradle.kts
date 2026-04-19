@@ -68,17 +68,11 @@ extensions.configure<ProfilesExtension>("profiles") {
                 }
                 repositories {
                     maven {
-                        name = "infernalsuite"
-
-                        url = if("${project.version}".endsWith("-SNAPSHOT")) {
-                            uri("https://repo.infernalsuite.com/repository/maven-snapshots/")
-                        } else {
-                            uri("https://repo.infernalsuite.com/repository/maven-releases/")
-                        }
-
+                        name = "vanutp"
+                        url = uri("https://maven.vanutp.dev/main")
                         credentials {
-                            username = project.property("ISUsername") as String?
-                            password = project.property("ISPassword") as String?
+                            username = System.getenv("REGISTRY_USERNAME")
+                            password = System.getenv("REGISTRY_TOKEN")
                         }
                     }
                 }

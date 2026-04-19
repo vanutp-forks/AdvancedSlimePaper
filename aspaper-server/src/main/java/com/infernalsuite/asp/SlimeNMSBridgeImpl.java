@@ -5,6 +5,7 @@ import com.infernalsuite.asp.api.SlimeNMSBridge;
 import com.infernalsuite.asp.api.world.SlimeWorld;
 import com.infernalsuite.asp.api.world.SlimeWorldInstance;
 import com.infernalsuite.asp.api.world.properties.SlimeProperties;
+import com.infernalsuite.asp.api.world.properties.SlimePropertyMap;
 import com.infernalsuite.asp.level.SlimeBootstrap;
 import com.infernalsuite.asp.level.SlimeInMemoryWorld;
 import com.infernalsuite.asp.level.SlimeLevelInstance;
@@ -12,6 +13,7 @@ import com.mojang.serialization.Lifecycle;
 import net.kyori.adventure.nbt.CompoundBinaryTag;
 import net.kyori.adventure.nbt.ListBinaryTag;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -20,11 +22,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.WorldLoader;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.dedicated.DedicatedServerProperties;
+import net.minecraft.util.GsonHelper;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.gamerules.GameRuleMap;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.WorldDimensions;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.storage.CommandStorage;
 import net.minecraft.world.level.storage.DimensionDataStorage;
@@ -215,9 +220,29 @@ public class SlimeNMSBridgeImpl implements SlimeNMSBridge {
         LevelSettings worldsettings = new LevelSettings(worldName, serverProps.gameMode.get(), false, serverProps.difficulty.get(),
                 true, new GameRules(context.dataConfiguration().enabledFeatures(), GameRuleMap.of()), mcServer.worldLoaderContext.dataConfiguration());
 
-        WorldOptions worldoptions = new WorldOptions(0, false, false);
+        SlimePropertyMap propertyMap = world.getPropertyMap();
+        boolean doGenerateWorld = propertyMap.getValue(SlimeProperties.GENERATE_WORLD);
 
-        PrimaryLevelData data = new PrimaryLevelData(worldsettings, worldoptions, PrimaryLevelData.SpecialWorldProperty.FLAT, Lifecycle.stable());
+        WorldOptions worldoptions = new WorldOptions(propertyMap.getValue(SlimeProperties.SEED), doGenerateWorld, false);
+        PrimaryLevelData.SpecialWorldProperty specialProp = doGenerateWorld ? PrimaryLevelData.SpecialWorldProperty.NONE : PrimaryLevelData.SpecialWorldProperty.FLAT;
+
+        Lifecycle lifecycle;
+        RegistryAccess.Frozen registryAccess = context.datapackDimensions();
+        if (doGenerateWorld) {
+            net.minecraft.core.Registry<LevelStem> contextLevelStemRegistry = registryAccess.lookupOrThrow(Registries.LEVEL_STEM);
+            DedicatedServerProperties.WorldDimensionData properties = new DedicatedServerProperties.WorldDimensionData(GsonHelper.parse("{}"), propertyMap.getValue(SlimeProperties.WORLD_TYPE).toLowerCase());
+            WorldDimensions worldDimensions = properties.create(context.datapackWorldgen());
+            WorldDimensions.Complete complete = worldDimensions.bake(contextLevelStemRegistry);
+            lifecycle = complete.lifecycle().add(context.datapackWorldgen().allRegistriesLifecycle());
+            registryAccess = complete.dimensionsRegistryAccess();
+        } else {
+            lifecycle = Lifecycle.stable();
+        }
+
+        PrimaryLevelData data = new PrimaryLevelData(worldsettings, worldoptions, specialProp, lifecycle);
+        if (doGenerateWorld) {
+            data.customDimensions = registryAccess.lookupOrThrow(Registries.LEVEL_STEM);
+        }
         data.checkName(worldName);
         data.setModdedInfo(mcServer.getServerModName(), mcServer.getModdedStatus().shouldReportAsModified());
         data.setInitialized(true);

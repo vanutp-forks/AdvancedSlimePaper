@@ -34,6 +34,7 @@ import net.minecraft.util.ProgressListener;
 import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -94,11 +95,13 @@ public class SlimeLevelInstance extends ServerLevel {
                               ResourceKey<net.minecraft.world.level.Level> worldKey,
                               ResourceKey<LevelStem> dimensionKey, LevelStem worldDimension,
                               org.bukkit.World.Environment environment) throws IOException {
-
         super(slimeBootstrap, MinecraftServer.getServer(), MinecraftServer.getServer().executor,
                 CUSTOM_LEVEL_STORAGE.createAccess(slimeBootstrap.initial().getName() + UUID.randomUUID(), dimensionKey),
-                primaryLevelData, worldKey, worldDimension, false, 0,
-                Collections.emptyList(), true, null, environment, null, null);
+                primaryLevelData, worldKey, worldDimension, false,
+                BiomeManager.obfuscateSeed(slimeBootstrap.initial().getPropertyMap().getValue(SlimeProperties.SEED)),
+                Collections.emptyList(), true,
+                slimeBootstrap.initial().getPropertyMap().getValue(SlimeProperties.GENERATE_WORLD) ? MinecraftServer.getServer().overworld().getRandomSequences() : null,
+                environment, null, null);
         this.slimeInstance = new SlimeInMemoryWorld(slimeBootstrap, this);
 
 
@@ -144,8 +147,13 @@ public class SlimeLevelInstance extends ServerLevel {
     }
 
     @Override
-    public @NotNull ChunkGenerator getGenerator(SlimeBootstrap slimeBootstrap) {
-        String biomeStr = slimeBootstrap.initial().getPropertyMap().getValue(SlimeProperties.DEFAULT_BIOME);
+    public @Nullable ChunkGenerator getGenerator(SlimeBootstrap slimeBootstrap) {
+        SlimePropertyMap propertyMap = slimeBootstrap.initial().getPropertyMap();
+        Boolean generateWorld = propertyMap.getValue(SlimeProperties.GENERATE_WORLD);
+        if (generateWorld) {
+            return null;
+        }
+        String biomeStr = propertyMap.getValue(SlimeProperties.DEFAULT_BIOME);
         ResourceKey<Biome> biomeKey = ResourceKey.create(Registries.BIOME, Identifier.parse(biomeStr));
         Holder<Biome> defaultBiome = MinecraftServer.getServer().registryAccess().lookupOrThrow(Registries.BIOME).get(biomeKey).orElseThrow();
         return new SlimeLevelGenerator(defaultBiome, this);
